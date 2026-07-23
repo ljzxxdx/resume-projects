@@ -1,0 +1,4 @@
+# Replace /opt/scrapyWithRedis with the absolute project path.
+# flock inside each script prevents overlapping replay processes.
+*/15 * * * * cd /opt/scrapyWithRedis && scripts/linux/replay_page_failures.sh mycrawler_redis 100 >> logs/cron-replay-page.log 2>&1
+7 * * * * cd /opt/scrapyWithRedis && scripts/linux/replay_image_failures.sh mycrawler_redis 100 >> logs/cron-replay-image.log 2>&1

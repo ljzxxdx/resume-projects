@@ -1,0 +1,10 @@
+{
+  "source_records": 90,
+  "source_downloaded_items": 30,
+  "repository_success_samples": 30,
+  "repository_failed_samples": 1,
+  "verified_success_items": 30,
+  "images_store": "images",
+  "image_files_on_disk": 30,
+  "problems": []
+}
