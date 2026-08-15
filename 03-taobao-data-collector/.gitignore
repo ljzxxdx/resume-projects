@@ -1,0 +1,26 @@
+# 本地配置与凭证
+.env
+
+# Python 运行产物
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 浏览器用户数据（含登录态、Cookie、历史记录等）
+artifacts/manual-chrome-profile/
+artifacts/chrome-profile/
+
+# 原始采集数据与本地运行日志
+artifacts/login-persistence-test/
+artifacts/manual-live/
+artifacts/manual-products/
+artifacts/stage2-live-validation/
+artifacts/runs/
+artifacts/logs/*.log
+
+# 仅本地保留的历史资料、运行证据与辅助工作文件
+artifacts/
+data/
+baseline/
+reference/

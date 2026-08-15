@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本地滑块交互演示</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { display: grid; min-height: 100vh; margin: 0; place-items: center; }
+    main { width: min(420px, calc(100vw - 48px)); }
+    #message { margin-bottom: 16px; text-align: center; }
+    #slider-track {
+      position: relative;
+      width: 100%;
+      height: 44px;
+      overflow: hidden;
+      border: 1px solid #b7bec8;
+      border-radius: 6px;
+      background: #eef1f5;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    #slider-progress { width: 0; height: 100%; background: #d8f3dc; }
+    #slider-handle {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 44px;
+      border: 0;
+      border-right: 1px solid #b7bec8;
+      background: #fff;
+      cursor: grab;
+      font-size: 20px;
+    }
+    body[data-verified="true"] #slider-track { border-color: #2b9348; }
+    body[data-verified="true"] #slider-handle { cursor: default; }
+  </style>
+</head>
+<body data-verified="false">
+  <main>
+    <p id="message">请拖动下方滑块完成验证</p>
+    <div id="slider-track">
+      <div id="slider-progress"></div>
+      <button id="slider-handle" type="button" aria-label="拖动滑块">›</button>
+    </div>
+  </main>
+  <script>
+    const track = document.querySelector("#slider-track");
+    const handle = document.querySelector("#slider-handle");
+    const progress = document.querySelector("#slider-progress");
+    const message = document.querySelector("#message");
+    let dragging = false;
+    let startX = 0;
+    let startLeft = 0;
+
+    const maximum = () => track.clientWidth - handle.offsetWidth;
+
+    handle.addEventListener("mousedown", event => {
+      if (document.body.dataset.verified === "true") return;
+      dragging = true;
+      startX = event.clientX;
+      startLeft = Number.parseFloat(handle.style.left || "0");
+      event.preventDefault();
+    });
+
+    document.addEventListener("mousemove", event => {
+      if (!dragging) return;
+      const left = Math.min(maximum(), Math.max(0, startLeft + event.clientX - startX));
+      handle.style.left = `${left}px`;
+      progress.style.width = `${left + handle.offsetWidth}px`;
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (!dragging) return;
+      dragging = false;
+      const left = Number.parseFloat(handle.style.left || "0");
+      if (left >= maximum() - 2) {
+        document.body.dataset.verified = "true";
+        message.textContent = "验证成功";
+        handle.textContent = "✓";
+        return;
+      }
+      handle.style.left = "0";
+      progress.style.width = "0";
+    });
+  </script>
+</body>
+</html>
