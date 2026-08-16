@@ -1,0 +1,32 @@
+# Private evidence and historical material
+artifacts/private/
+legacy/
+docs/plans/
+docs/superpowers/
+AGENTS.md
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Historical input and logs
+table.xlsx
+translation_log.txt
+write_log.txt
+*.log
+
+# Runtime state and outputs
+output/
+checkpoints/
+*.sqlite
+*.sqlite3
