@@ -1,16 +1,16 @@
-# Private evidence and historical material
+# 私有证据和历史材料
 artifacts/private/
 legacy/
 docs/plans/
 docs/superpowers/
 AGENTS.md
 
-# Local configuration and credentials
+# 本地配置和凭据
 .env
 .env.*
 !.env.example
 
-# Python caches and environments
+# Python 缓存和虚拟环境
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -19,13 +19,13 @@ __pycache__/
 .venv/
 venv/
 
-# Historical input and logs
+# 历史输入和日志
 table.xlsx
 translation_log.txt
 write_log.txt
 *.log
 
-# Runtime state and outputs
+# 运行状态和输出
 output/
 checkpoints/
 *.sqlite
