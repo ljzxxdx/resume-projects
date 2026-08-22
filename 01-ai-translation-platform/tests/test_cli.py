@@ -107,6 +107,24 @@ class TranslateCommandTests(CliTestCase):
             "source and target languages must differ",
         )
 
+    def test_omitted_languages_use_default_text_inference(self) -> None:
+        arguments = parse_args(
+            [
+                "translate",
+                "--text",
+                "Synthetic text 123",
+            ]
+        )
+
+        self.assertEqual(arguments.from_lang, "en")
+        self.assertEqual(arguments.to_lang, "zh-CHS")
+
+    def test_signal_free_text_requires_explicit_source_language(self) -> None:
+        self.assert_parse_error(
+            ["translate", "--text", "12345?!"],
+            "no supported language",
+        )
+
 
 class BatchCommandTests(CliTestCase):
     def create_csv(self, directory: Path, name: str = "input.csv") -> Path:

@@ -8,9 +8,10 @@ from enum import Enum
 from typing import Optional
 
 from translation_platform.config import ConfigurationError, validate_language_pair
+from translation_platform.errors import ConfigurationFailure, ErrorType
 
 
-class ModelValidationError(ValueError):
+class ModelValidationError(ConfigurationFailure, ValueError):
     """运行记录不满足一致性约束时抛出。"""
 
 
@@ -20,20 +21,6 @@ class RecordStatus(str, Enum):
     SUCCESS = "success"
     FAILURE = "failure"
     PARTIAL = "partial"
-
-
-class ErrorType(str, Enum):
-    """供请求、批处理和运行摘要共用的错误分类。"""
-
-    CONFIGURATION = "configuration"
-    SIGNATURE_TOKEN = "signature_token"
-    NETWORK_CONNECTION = "network_connection"
-    TIMEOUT = "timeout"
-    HTTP_4XX = "http_4xx"
-    HTTP_5XX = "http_5xx"
-    RATE_LIMIT = "rate_limit"
-    RESPONSE_FORMAT = "response_format"
-    EMPTY_RESULT = "empty_result"
 
 
 @dataclass(frozen=True)

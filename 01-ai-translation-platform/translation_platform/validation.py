@@ -8,22 +8,34 @@ from pathlib import Path
 from typing import Iterable, Tuple
 
 from translation_platform.paths import resolve_project_path
+from translation_platform.language import LanguageResolutionError, resolve_language_pair
+from translation_platform.errors import ConfigurationFailure
 
 
 SUPPORTED_FILE_EXTENSIONS = (".csv", ".xlsx")
 
 
-class InputValidationError(ValueError):
+class InputValidationError(ConfigurationFailure, ValueError):
     """用户提供的命令参数内部不一致时抛出。"""
 
 
 def validate_arguments(arguments: argparse.Namespace) -> argparse.Namespace:
     """规范化并校验已解析的命令参数。"""
 
-    _validate_language_pair(arguments.from_lang, arguments.to_lang)
     if arguments.command == "translate":
         arguments.text = _normalize_text(arguments.text)
+        try:
+            decision = resolve_language_pair(
+                text=arguments.text,
+                from_lang=arguments.from_lang,
+                to_lang=arguments.to_lang,
+            )
+        except LanguageResolutionError as exc:
+            raise InputValidationError(str(exc)) from exc
+        arguments.from_lang = decision.from_lang
+        arguments.to_lang = decision.to_lang
     elif arguments.command == "batch":
+        _validate_language_pair(arguments.from_lang, arguments.to_lang)
         _validate_batch_arguments(arguments)
     return arguments
 

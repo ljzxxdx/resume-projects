@@ -6,11 +6,13 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
+from translation_platform.errors import ConfigurationFailure
+
 
 SUPPORTED_LANGUAGES = ("en", "zh-CHS")
 
 
-class ConfigurationError(ValueError):
+class ConfigurationError(ConfigurationFailure, ValueError):
     """配置值不符合运行边界时抛出。"""
 
 

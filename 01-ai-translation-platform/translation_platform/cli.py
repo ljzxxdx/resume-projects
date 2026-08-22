@@ -56,12 +56,10 @@ def build_parser() -> argparse.ArgumentParser:
     translate_parser.add_argument("--text", required=True)
     translate_parser.add_argument(
         "--from-lang",
-        required=True,
         choices=SUPPORTED_LANGUAGES,
     )
     translate_parser.add_argument(
         "--to-lang",
-        required=True,
         choices=SUPPORTED_LANGUAGES,
     )
 
