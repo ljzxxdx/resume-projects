@@ -53,6 +53,9 @@ def _validate_language_pair(from_lang: str, to_lang: str) -> None:
 
 
 def _validate_batch_arguments(arguments: argparse.Namespace) -> None:
+    if not isinstance(arguments.retry_failures, bool):
+        raise InputValidationError("--retry-failures 必须是布尔开关")
+
     columns = _normalize_columns(arguments.columns)
     input_path = _normalize_path(arguments.input_path)
     output_path = _normalize_path(arguments.output_path)

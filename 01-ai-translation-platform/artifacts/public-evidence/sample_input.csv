@@ -1,0 +1,4 @@
+record_id,source_lang,target_lang,source_text
+sample-001,zh-CHS,en,合成会议将在示例城市举行
+sample-002,zh-CHS,en,合成会议将在示例城市举行
+sample-003,en,zh-CHS,Synthetic workshop meets in Example City

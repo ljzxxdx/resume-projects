@@ -96,6 +96,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=3,
     )
     batch_parser.add_argument("--checkpoint", dest="checkpoint_path")
+    batch_parser.add_argument(
+        "--retry-failures",
+        action="store_true",
+        help="显式重试检查点中已有的失败记录",
+    )
     batch_parser.add_argument("--use-proxy", action="store_true")
 
     return parser

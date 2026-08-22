@@ -1,0 +1,4 @@
+record_id,source_text,translated_text,duplicate_group,execution_result,fixture
+sample-001,合成会议将在示例城市举行,synthetic: Synthetic meeting will be held in Example City.,group-1,executed,deterministic-fake-translator
+sample-002,合成会议将在示例城市举行,synthetic: Synthetic meeting will be held in Example City.,group-1,reused-duplicate,deterministic-fake-translator
+sample-003,Synthetic workshop meets in Example City,synthetic: 合成工作坊在示例城市举行。,group-2,executed,deterministic-fake-translator

@@ -1,0 +1,1 @@
+{"run_id":"offline-synthetic-demo-20260822","input_cells":3,"unique_texts":2,"successes":2,"failures":0,"cache_hits":0,"retries":0,"error_counts":{},"started_at":"2026-08-22T10:00:00+08:00","finished_at":"2026-08-22T10:00:01+08:00","average_latency_ms":3.5,"p95_latency_ms":4.0}

@@ -178,6 +178,7 @@ class BatchCommandTests(CliTestCase):
         self.assertEqual(arguments.max_retries, 3)
         self.assertIsNone(arguments.checkpoint_path)
         self.assertFalse(arguments.use_proxy)
+        self.assertFalse(arguments.retry_failures)
 
     def test_valid_xlsx_columns_are_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -324,6 +325,36 @@ class BatchCommandTests(CliTestCase):
 
         self.assertFalse(default_arguments.use_proxy)
         self.assertTrue(enabled_arguments.use_proxy)
+
+    def test_failed_checkpoint_retry_requires_explicit_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            input_path = self.create_csv(directory)
+            output_path = directory / "output.csv"
+
+            default_arguments = parse_args(self.batch_arguments(input_path, output_path))
+            enabled_arguments = parse_args(
+                self.batch_arguments(input_path, output_path, "--retry-failures")
+            )
+
+        self.assertFalse(default_arguments.retry_failures)
+        self.assertTrue(enabled_arguments.retry_failures)
+
+    def test_retry_failures_validation_rejects_non_boolean_values(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            input_path = self.create_csv(directory)
+            output_path = directory / "output.csv"
+            arguments = cli.build_parser().parse_args(
+                self.batch_arguments(input_path, output_path)
+            )
+            arguments.retry_failures = "true"
+
+            with self.assertRaisesRegex(
+                cli.InputValidationError,
+                "--retry-failures 必须是布尔开关",
+            ):
+                cli.validate_arguments(arguments)
 
     def test_equal_batch_languages_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
