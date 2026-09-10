@@ -1,0 +1,58 @@
+{
+  "actual_samples": 20,
+  "cache_hits": 20,
+  "directions": {
+    "en_to_zh-CHS": {
+      "actual": 10,
+      "failures": 9,
+      "planned": 10,
+      "successes": 1
+    },
+    "zh-CHS_to_en": {
+      "actual": 10,
+      "failures": 8,
+      "planned": 10,
+      "successes": 2
+    }
+  },
+  "error_counts": {
+    "empty_result": 17
+  },
+  "evidence_type": "live_low_load_smoke",
+  "failures": 17,
+  "finished_at": "2026-09-03T09:38:08.992474+00:00",
+  "input_set": {
+    "sample_count": 20,
+    "sha256": "59b4e1ff20a66b1afa0beca8d64cab389393c668eaf332afb63de485815c68e1",
+    "version": "live-smoke-v1"
+  },
+  "planned_samples": 20,
+  "proxy": {
+    "enabled": false,
+    "switches": 0
+  },
+  "request_attempts": 0,
+  "request_count": 0,
+  "retries": 0,
+  "sample_results": [
+    {
+      "direction": "zh-CHS_to_en",
+      "input_summary": "sha256:670d9743542cae3ea7ebe36af56bd53648b0a1126162e78d81a32934a711302e",
+      "output_summary": "sha256:185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969",
+      "sample_id": "zh-en-01",
+      "status": "success"
+    },
+    {
+      "direction": "en_to_zh-CHS",
+      "input_summary": "sha256:185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969",
+      "output_summary": "sha256:670d9743542cae3ea7ebe36af56bd53648b0a1126162e78d81a32934a711302e",
+      "sample_id": "en-zh-01",
+      "status": "success"
+    }
+  ],
+  "started_at": "2026-09-03T09:38:08.989286+00:00",
+  "status": "degraded",
+  "success_cache_ready": true,
+  "success_rate": 0.15,
+  "successes": 3
+}

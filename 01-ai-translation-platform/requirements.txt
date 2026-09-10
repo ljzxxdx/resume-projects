@@ -1,0 +1,6 @@
+# 翻译、JavaScript 签名和表格处理阶段所需的运行依赖。
+# 版本范围保持与 Python 3.9 兼容。
+requests>=2.31,<3
+PyExecJS>=1.5.1,<2
+pandas>=2.0,<3
+openpyxl>=3.1,<4

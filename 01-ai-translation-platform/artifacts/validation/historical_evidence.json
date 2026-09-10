@@ -1,0 +1,103 @@
+{
+  "logs": {
+    "translation_log": {
+      "duplicates": 0,
+      "failed_lines": 13,
+      "rounds": [
+        {
+          "failed_lines": 7,
+          "round": 1,
+          "successful_lines": 1028,
+          "total_lines": 1035,
+          "unparseable_lines": 0
+        },
+        {
+          "failed_lines": 1,
+          "round": 2,
+          "successful_lines": 0,
+          "total_lines": 2,
+          "unparseable_lines": 1
+        },
+        {
+          "failed_lines": 1,
+          "round": 3,
+          "successful_lines": 0,
+          "total_lines": 2,
+          "unparseable_lines": 1
+        },
+        {
+          "failed_lines": 2,
+          "round": 4,
+          "successful_lines": 29,
+          "total_lines": 32,
+          "unparseable_lines": 1
+        },
+        {
+          "failed_lines": 1,
+          "round": 5,
+          "successful_lines": 0,
+          "total_lines": 2,
+          "unparseable_lines": 1
+        },
+        {
+          "failed_lines": 1,
+          "round": 6,
+          "successful_lines": 0,
+          "total_lines": 2,
+          "unparseable_lines": 1
+        }
+      ],
+      "successful_lines": 1057,
+      "total_lines": 1080,
+      "unique_input_result_pairs": 1057,
+      "unique_inputs": 1028,
+      "unparseable_lines": 5
+    },
+    "write_log": {
+      "duplicates": 1,
+      "failed_lines": 0,
+      "rounds": [
+        {
+          "failed_lines": 0,
+          "round": 1,
+          "successful_lines": 1028,
+          "total_lines": 1029,
+          "unparseable_lines": 1
+        },
+        {
+          "failed_lines": 0,
+          "round": 2,
+          "successful_lines": 30,
+          "total_lines": 30,
+          "unparseable_lines": 0
+        }
+      ],
+      "successful_lines": 1058,
+      "total_lines": 1060,
+      "unique_input_result_pairs": 1057,
+      "unique_inputs": 1028,
+      "unparseable_lines": 1
+    }
+  },
+  "schema_version": 1,
+  "statistical_basis": {
+    "log_unit": "日志物理行，包含空白轮次分隔行；日志行数不等于唯一翻译数。",
+    "unique_text_unit": "翻译成功记录按输入文本去重。",
+    "unlocatable_rule": "缺少位置、工作表、列或逻辑行号无效时不猜测，计入无法定位。",
+    "write_cell_unit": "成功匹配的工作簿单元格坐标去重后计数。",
+    "write_match_rule": "仅当日志中的逻辑行号和列名可定位，且目标单元格等于该记录结果时计为成功匹配。"
+  },
+  "threshold": {
+    "is_met": true,
+    "minimum": 1000,
+    "rule": "成功唯一输入文本数或去重后的成功写入单元数至少达到 1000。"
+  },
+  "workbook_reconciliation": {
+    "mismatches": 31,
+    "successful_matches": 1027,
+    "successful_write_records": 1058,
+    "unique_successful_write_cells": 1027,
+    "unlocatable_records": 0,
+    "verifiable_write_records": 1058
+  }
+}
