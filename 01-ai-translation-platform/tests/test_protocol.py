@@ -99,6 +99,82 @@ class SignedRequestBuilderTests(unittest.TestCase):
             "client,keyid,mysticTime,token,yduuid,key",
         )
 
+    def test_chat_request_preserves_the_signed_authentication_contract(self) -> None:
+        from translation_platform.protocol import SignedRequestBuilder
+        from translation_platform.signer import SignatureResult
+
+        expected_signature = SignatureResult(
+            mystic_time="1700000000999",
+            payload=(
+                "client=synthetic-client&keyid=synthetic-chat-keyid&"
+                "mysticTime=1700000000999&token=synthetic-contract-token&"
+                "yduuid=synthetic-contract-device&key=synthetic-chat-key"
+            ),
+            signature="synthetic-contract-signature",
+        )
+        recorded_signing_input = {}
+
+        class RecordingSigner:
+            def sign(self, parameters, ordered_fields, signing_key):
+                recorded_signing_input["parameters"] = dict(parameters)
+                recorded_signing_input["ordered_fields"] = tuple(ordered_fields)
+                recorded_signing_input["signing_key"] = signing_key
+                return expected_signature
+
+        request = SignedRequestBuilder(RecordingSigner()).build_chat(
+            profile=self.chat_profile(),
+            token="synthetic-contract-token",
+            yduuid="synthetic-contract-device",
+            dynamic_parameters={"input": "synthetic contract text"},
+        )
+
+        self.assertEqual(
+            recorded_signing_input,
+            {
+                "parameters": {
+                    "client": "synthetic-client",
+                    "input": "synthetic contract text",
+                    "keyid": "synthetic-chat-keyid",
+                    "token": "synthetic-contract-token",
+                    "yduuid": "synthetic-contract-device",
+                },
+                "ordered_fields": (
+                    "client",
+                    "keyid",
+                    "mysticTime",
+                    "token",
+                    "yduuid",
+                    "key",
+                ),
+                "signing_key": "synthetic-chat-key",
+            },
+        )
+        self.assertEqual(request.signature, expected_signature)
+        self.assertEqual(request.parameters["mysticTime"], expected_signature.mystic_time)
+        self.assertIn("token", request.parameters)
+        self.assertEqual(
+            request.parameters["token"],
+            recorded_signing_input["parameters"]["token"],
+        )
+        self.assertIn("yduuid", request.parameters)
+        self.assertEqual(
+            request.parameters["yduuid"],
+            recorded_signing_input["parameters"]["yduuid"],
+        )
+        self.assertIn("sign", request.parameters)
+        self.assertEqual(request.parameters["sign"], expected_signature.signature)
+        self.assertIn("keyid", request.parameters)
+        self.assertEqual(
+            request.parameters["keyid"],
+            recorded_signing_input["parameters"]["keyid"],
+        )
+        self.assertIn("pointParam", request.parameters)
+        self.assertEqual(
+            request.parameters["pointParam"],
+            "client,keyid,mysticTime,token,yduuid,key",
+        )
+        self.assertNotIn("key", request.parameters)
+
     def test_endpoint_relationships_and_required_values_are_enforced(self) -> None:
         from translation_platform.protocol import ProtocolError
 

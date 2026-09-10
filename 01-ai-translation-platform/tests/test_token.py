@@ -29,6 +29,10 @@ class SequenceSession:
         self.calls.append((url, kwargs))
         return next(self.responses)
 
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        return next(self.responses)
+
     def close(self) -> None:
         self.closed = True
 
@@ -334,6 +338,35 @@ class AuthenticatedClientIntegrationTests(unittest.TestCase):
             client.post_translation({"input": "synthetic text"})
 
         self.assertTrue(streaming_response.closed)
+
+    def test_token_provider_supports_get_and_nested_token_path(self) -> None:
+        from tests.test_client import FakeResponse, make_test_rate_limiter
+        from translation_platform.client import JsonTokenProvider, SessionHttpClient
+        from translation_platform.protocol import EndpointKind, SignedRequestBuilder
+        from translation_platform.signer import JsSigner
+
+        session = SequenceSession(
+            [FakeResponse(payload={"data": {"credential": "fixture-auth-value"}})]
+        )
+        transport = SessionHttpClient(
+            session=session,
+            rate_limiter=make_test_rate_limiter(),
+        )
+        provider = JsonTokenProvider(
+            transport=transport,
+            request_builder=SignedRequestBuilder(
+                JsSigner(clock=lambda: 1700000000123)
+            ),
+            profile=self.profile(EndpointKind.SECRET),
+            secret_url="https://translation.invalid/secret",
+            yduuid="fixture-device",
+            request_method="GET",
+            token_path=("data", "credential"),
+        )
+
+        self.assertEqual(provider(), "fixture-auth-value")
+        self.assertEqual(len(session.calls), 1)
+        self.assertIn("params", session.calls[0][1])
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import time
 from collections.abc import Mapping
@@ -137,6 +139,7 @@ def _validate_signing_inputs(
 
 
 def _parse_result(raw_result: object) -> SignatureResult:
+    raw_result = _decode_ascii_transport(raw_result)
     if not isinstance(raw_result, dict):
         raise SignerError("JavaScript signer returned an invalid result")
     mystic_time = raw_result.get("mysticTime")
@@ -149,3 +152,18 @@ def _parse_result(raw_result: object) -> SignatureResult:
         payload=payload,
         signature=signature,
     )
+
+
+def _decode_ascii_transport(raw_result: object) -> object:
+    if not isinstance(raw_result, dict):
+        return raw_result
+    if raw_result.get("transportEncoding") != "base64-json-v1":
+        return raw_result
+    encoded = raw_result.get("data")
+    if not isinstance(encoded, str) or not encoded:
+        raise SignerError("JavaScript 签名结果的 ASCII 信封无效")
+    try:
+        decoded = base64.b64decode(encoded, validate=True).decode("utf-8")
+        return json.loads(decoded)
+    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        raise SignerError("JavaScript 签名结果的 ASCII 信封无效") from None

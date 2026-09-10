@@ -10,7 +10,7 @@ from collections.abc import MutableMapping
 from contextlib import nullcontext
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Tuple, TypeVar
 
 import requests
 
@@ -155,6 +155,60 @@ class SessionHttpClient:
     ) -> Any:
         """执行一次 POST，并在返回前检查 HTTP 状态。"""
 
+        return self._request(
+            "post",
+            url=url,
+            parameters=params,
+            stream=stream,
+            parameter_location="query",
+        )
+
+    def post_form(
+        self,
+        url: str,
+        data: Mapping[str, str],
+        stream: bool = False,
+    ) -> Any:
+        """执行一次表单 POST，并复用相同传输边界。"""
+
+        return self._request(
+            "post",
+            url=url,
+            parameters=data,
+            stream=stream,
+            parameter_location="form",
+        )
+
+    def get(
+        self,
+        url: str,
+        params: Mapping[str, str],
+        stream: bool = False,
+    ) -> Any:
+        """执行一次 GET，并复用相同限速、超时和状态检查边界。"""
+
+        return self._request(
+            "get",
+            url=url,
+            parameters=params,
+            stream=stream,
+            parameter_location="query",
+        )
+
+    def _request(
+        self,
+        method_name: str,
+        url: str,
+        parameters: Mapping[str, str],
+        stream: bool,
+        parameter_location: str,
+    ) -> Any:
+        request_method = getattr(self._session, method_name, None)
+        if not callable(request_method):
+            raise HttpClientConfigurationError(
+                "Session 不支持所需的 HTTP " + method_name.upper() + " 方法"
+            )
+
         self._ensure_open()
         self._rate_limiter.wait()
         request_scope = (
@@ -164,12 +218,13 @@ class SessionHttpClient:
         )
         with request_scope as proxy_id:
             try:
-                response = self._session.post(
-                    url,
-                    params=dict(params),
-                    timeout=(self._connect_timeout, self._read_timeout),
-                    stream=stream,
-                )
+                parameter_key = "data" if parameter_location == "form" else "params"
+                request_arguments: Dict[str, object] = {
+                    parameter_key: dict(parameters),
+                    "timeout": (self._connect_timeout, self._read_timeout),
+                    "stream": stream,
+                }
+                response = request_method(url, **request_arguments)
             except requests.Timeout as exc:
                 error = RequestTimeoutError("HTTP request timed out")
                 if self._proxy_manager is not None and self._proxy_manager.enabled:
@@ -255,7 +310,19 @@ class SessionHttpClient:
     ) -> Mapping[str, object]:
         """执行一次 POST，并要求响应顶层为 JSON 对象。"""
 
-        response = self.post(url=url, params=params, stream=False)
+        return self._json_response(self.post(url=url, params=params, stream=False))
+
+    def get_json(
+        self,
+        url: str,
+        params: Mapping[str, str],
+    ) -> Mapping[str, object]:
+        """执行一次 GET，并要求响应顶层为 JSON 对象。"""
+
+        return self._json_response(self.get(url=url, params=params, stream=False))
+
+    @staticmethod
+    def _json_response(response: Any) -> Mapping[str, object]:
         try:
             payload = response.json()
         except Exception as exc:
@@ -445,13 +512,21 @@ class RequestRuntime:
 class BusinessRequestClient:
     """每次调用只执行一次业务 POST，不在内部隐式重发。"""
 
-    def __init__(self, transport: SessionHttpClient, business_url: str) -> None:
+    def __init__(
+        self,
+        transport: SessionHttpClient,
+        business_url: str,
+        parameter_location: str = "query",
+    ) -> None:
         if not isinstance(transport, SessionHttpClient):
             raise BusinessPostError("SessionHttpClient transport is required")
         if not isinstance(business_url, str) or not business_url.strip():
             raise BusinessPostError("business_url must not be empty")
+        if parameter_location not in {"query", "form"}:
+            raise BusinessPostError("parameter_location 只支持 query 或 form")
         self._transport = transport
         self._business_url = business_url
+        self._parameter_location = parameter_location
 
     def post_translation(self, request: SignedRequest) -> Any:
         """发送一次 chat 业务请求并返回已检查状态的流式响应。"""
@@ -462,6 +537,12 @@ class BusinessRequestClient:
             raise BusinessPostError("a signed chat request is required")
 
         try:
+            if self._parameter_location == "form":
+                return self._transport.post_form(
+                    self._business_url,
+                    data=request.parameters,
+                    stream=True,
+                )
             return self._transport.post(
                 self._business_url,
                 params=request.parameters,
@@ -485,6 +566,8 @@ class JsonTokenProvider:
         secret_url: str,
         yduuid: str,
         token_field: str = "token",
+        request_method: str = "POST",
+        token_path: Optional[Sequence[str]] = None,
     ) -> None:
         if profile.endpoint is not EndpointKind.SECRET:
             raise HttpClientConfigurationError("secret profile is required")
@@ -493,20 +576,49 @@ class JsonTokenProvider:
         self._profile = profile
         self._secret_url = _require_text("secret_url", secret_url)
         self._yduuid = _require_text("yduuid", yduuid)
-        self._token_field = _require_text("token_field", token_field)
+        normalized_method = _require_text("request_method", request_method).upper()
+        if normalized_method not in {"GET", "POST"}:
+            raise HttpClientConfigurationError("request_method 只支持 GET 或 POST")
+        self._request_method = normalized_method
+        if token_path is None:
+            self._token_path = (_require_text("token_field", token_field),)
+        else:
+            if isinstance(token_path, (str, bytes)):
+                raise HttpClientConfigurationError("token_path 必须是字段序列")
+            try:
+                normalized_path = tuple(token_path)
+            except TypeError:
+                raise HttpClientConfigurationError("token_path 必须是字段序列") from None
+            if not normalized_path or any(
+                not isinstance(field, str) or not field.strip()
+                for field in normalized_path
+            ):
+                raise HttpClientConfigurationError("token_path 必须包含非空字段名")
+            self._token_path = normalized_path
 
     def __call__(self) -> str:
         request = self._request_builder.build_secret(
             profile=self._profile,
             yduuid=self._yduuid,
         )
-        payload = self._transport.post_json(
-            url=self._secret_url,
-            params=request.parameters,
-        )
-        token = payload.get(self._token_field)
+        if self._request_method == "GET":
+            payload = self._transport.get_json(
+                url=self._secret_url,
+                params=request.parameters,
+            )
+        else:
+            payload = self._transport.post_json(
+                url=self._secret_url,
+                params=request.parameters,
+            )
+        token: object = payload
+        for field in self._token_path:
+            if not isinstance(token, Mapping):
+                token = None
+                break
+            token = token.get(field)
         if not isinstance(token, str) or not token.strip():
-            raise TokenAcquisitionError("secret response contains no valid token")
+            raise TokenAcquisitionError("secret 响应不含有效 token")
         return token.strip()
 
 

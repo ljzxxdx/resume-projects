@@ -128,6 +128,28 @@ class BusinessPostTests(ClientTestCase):
         self.assertTrue(kwargs["stream"])
         self.assertEqual(response.status_checks, 1)
 
+    def test_business_post_can_send_signed_parameters_as_form_data(self) -> None:
+        from translation_platform.client import BusinessRequestClient, SessionHttpClient
+
+        response = FakeResponse(payload={"synthetic": "response"})
+        session = RecordingSession(response=response)
+        transport = SessionHttpClient(
+            session=session,
+            rate_limiter=make_test_rate_limiter(),
+        )
+        client = BusinessRequestClient(
+            transport=transport,
+            business_url="https://translation.invalid/chat",
+            parameter_location="form",
+        )
+
+        client.post_translation(self.signed_chat_request())
+
+        _, kwargs = session.calls[0]
+        self.assertEqual(kwargs["data"]["input"], "synthetic text")
+        self.assertNotIn("params", kwargs)
+        self.assertTrue(kwargs["stream"])
+
     def test_failed_post_is_reported_once_without_hidden_second_request(self) -> None:
         from translation_platform.client import BusinessPostError
 

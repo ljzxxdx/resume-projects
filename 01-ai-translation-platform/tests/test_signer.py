@@ -46,6 +46,25 @@ class SignerBehaviorTests(unittest.TestCase):
         )
         self.assertEqual(first.signature, "77248b6033ef33333853997c754eee6a")
 
+    def test_real_execjs_round_trip_preserves_chinese_payload_and_signature(self) -> None:
+        from translation_platform.signer import JsSigner
+
+        result = JsSigner(clock=lambda: 1700000000123).sign(
+            parameters={
+                "client": "synthetic-client",
+                "input": "天气晴朗。",
+            },
+            ordered_fields=("client", "input", "mysticTime", "key"),
+            signing_key="synthetic-key",
+        )
+
+        self.assertEqual(
+            result.payload,
+            "client=synthetic-client&input=天气晴朗。&"
+            "mysticTime=1700000000123&key=synthetic-key",
+        )
+        self.assertEqual(result.signature, "6a508329a1bbe3f435f6c8b95e0e25f4")
+
     def test_injected_clock_replaces_stale_timestamp_and_is_called_once(self) -> None:
         from translation_platform.signer import JsSigner
 

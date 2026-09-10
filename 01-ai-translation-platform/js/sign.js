@@ -9,6 +9,13 @@ function md5Hex(value) {
     return crypto.createHash("md5").update(value, "utf8").digest("hex");
 }
 
+function encodeAsciiResult(value) {
+    return {
+        transportEncoding: "base64-json-v1",
+        data: Buffer.from(JSON.stringify(value), "utf8").toString("base64"),
+    };
+}
+
 function signOrderedParameters(parameters, orderedFields, signingKey, mysticTime) {
     const signingValues = Object.assign({}, parameters, {
         mysticTime: String(mysticTime),
@@ -18,9 +25,9 @@ function signOrderedParameters(parameters, orderedFields, signingKey, mysticTime
         .map((field) => `${field}=${String(signingValues[field])}`)
         .join("&");
 
-    return {
+    return encodeAsciiResult({
         mysticTime: String(mysticTime),
         payload: payload,
         signature: md5Hex(payload),
-    };
+    });
 }

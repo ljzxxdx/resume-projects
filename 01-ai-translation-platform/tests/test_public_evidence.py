@@ -13,7 +13,10 @@ from pathlib import Path
 from translation_platform.observability import BatchRunSummary
 
 
-EVIDENCE_DIRECTORY = Path(__file__).resolve().parents[1] / "artifacts" / "public-evidence"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+EVIDENCE_DIRECTORY = PROJECT_ROOT / "artifacts" / "public-evidence"
+VALIDATION_DIRECTORY = PROJECT_ROOT / "artifacts" / "validation"
+ROOT_README = PROJECT_ROOT / "README.md"
 SAMPLE_FILES = (
     EVIDENCE_DIRECTORY / "sample_input.csv",
     EVIDENCE_DIRECTORY / "sample_output.csv",
@@ -61,6 +64,15 @@ SENSITIVE_MARKER_PATTERNS = (
     ("private_artifact_path", re.compile(r"(?i)artifacts[\\/]private")),
 )
 
+POSITIVE_ONLINE_CONCLUSIONS = (
+    "是可用服务",
+    "接口可用",
+    "90% 达标",
+)
+NEGATIVE_CLAIM_CONTEXT = re.compile(
+    r"(?:不|未|非|无|不能|无法|不得|没有|不代表).{0,8}$"
+)
+
 
 def _find_sensitive_markers(content: str) -> tuple[str, ...]:
     """返回内容中命中的通用敏感类别，不包含供应商专属规则。"""
@@ -69,6 +81,43 @@ def _find_sensitive_markers(content: str) -> tuple[str, ...]:
         for category, pattern in SENSITIVE_MARKER_PATTERNS
         if pattern.search(content) is not None
     )
+
+
+def _read_validation_evidence(filename: str) -> dict:
+    """读取一份公开安全的聚合验证证据。"""
+    return json.loads(
+        (VALIDATION_DIRECTORY / filename).read_text(encoding="utf-8")
+    )
+
+
+def _markdown_section(content: str, title: str) -> str:
+    """按三级标题提取正文，避免用其他章节的数字满足断言。"""
+    pattern = re.compile(
+        rf"(?ms)^###\s+{re.escape(title)}\s*\n(.*?)(?=^#{{1,3}}\s|\Z)"
+    )
+    matches = pattern.findall(content)
+    if len(matches) != 1:
+        raise AssertionError(f"README 章节缺失或重复：{title}")
+    return matches[0]
+
+
+def _section_line(section: str, prefix: str) -> str:
+    """提取证据章节中的单个统计行。"""
+    matches = [line for line in section.splitlines() if line.startswith(prefix)]
+    if len(matches) != 1:
+        raise AssertionError(f"README 统计行缺失或重复：{prefix}")
+    return matches[0]
+
+
+def _find_positive_online_conclusions(content: str) -> tuple[str, ...]:
+    """拒绝正向在线结论，同时允许紧邻明确否定语境的同一短语。"""
+    findings = []
+    for phrase in POSITIVE_ONLINE_CONCLUSIONS:
+        for match in re.finditer(re.escape(phrase), content):
+            context = content[max(0, match.start() - 12) : match.start()]
+            if NEGATIVE_CLAIM_CONTEXT.search(context) is None:
+                findings.append(phrase)
+    return tuple(findings)
 
 
 class PublicEvidenceTests(unittest.TestCase):
@@ -81,6 +130,170 @@ class PublicEvidenceTests(unittest.TestCase):
                 self.assertTrue(path.is_file(), "公开样例文件缺失")
                 content = path.read_text(encoding="utf-8")
                 self.assertEqual(_find_sensitive_markers(content), ())
+
+    def _assert_root_readme_contract(self, readme: str) -> None:
+        """核对 README 的在线边界与三个证据章节。"""
+        for required_text in (
+            "当前只完成参数校验",
+            "未装配为公开的一键真实翻译",
+        ):
+            with self.subTest(required_text=required_text):
+                self.assertIn(required_text, readme)
+        self.assertIn("不是可用服务", readme)
+        self.assertEqual(_find_positive_online_conclusions(readme), ())
+
+        historical = _read_validation_evidence("historical_evidence.json")
+        synthetic = _read_validation_evidence("synthetic_batch_evidence.json")
+        live = _read_validation_evidence("live_smoke_evidence.json")
+        replay = _read_validation_evidence("live_smoke_replay_evidence.json")
+
+        historical_section = _markdown_section(readme, "1. 历史只读审计")
+        translation_log = historical["logs"]["translation_log"]
+        translation_line = _section_line(historical_section, "- translation log：")
+        for field, unit in (
+            ("total_lines", "个物理行"),
+            ("successful_lines", "个成功记录"),
+            ("failed_lines", "个失败记录"),
+            ("unique_inputs", "个唯一输入"),
+            ("unparseable_lines", "个无法解析行"),
+        ):
+            self.assertIn(f"{translation_log[field]} {unit}", translation_line)
+
+        write_log = historical["logs"]["write_log"]
+        write_line = _section_line(historical_section, "- write log：")
+        for field, unit in (
+            ("total_lines", "个物理行"),
+            ("successful_lines", "个成功记录"),
+            ("unique_inputs", "个唯一输入"),
+            ("duplicates", "个重复记录"),
+            ("unparseable_lines", "个无法解析行"),
+        ):
+            self.assertIn(f"{write_log[field]} {unit}", write_line)
+
+        reconciliation = historical["workbook_reconciliation"]
+        workbook_line = _section_line(historical_section, "- 工作簿对账：")
+        for field, label in (
+            ("verifiable_write_records", "个可核验写入记录"),
+            ("successful_matches", "位置和值均匹配"),
+            ("mismatches", "不一致"),
+            ("unlocatable_records", "无法定位"),
+        ):
+            expected = (
+                f"{reconciliation[field]} {label}"
+                if field == "verifiable_write_records"
+                else f"{label} {reconciliation[field]}"
+            )
+            self.assertIn(expected, workbook_line)
+
+        synthetic_section = _markdown_section(readme, "2. 离线合成")
+        dataset = synthetic["dataset"]
+        for field, unit in (
+            ("rows", "行"),
+            ("input_cells", "个输入单元格"),
+            ("unique_texts", "个唯一任务"),
+            ("deduplicated_cells", "个去重命中"),
+        ):
+            self.assertIn(f"{dataset[field]} {unit}", synthetic_section)
+        mock_usage = synthetic["mock_usage"]
+        retry_count = synthetic["fault_injection"]["temporary_failure"][
+            "retries_observed"
+        ]
+        second_run = synthetic["second_identical_run"]
+        self.assertIn(
+            f"mock 业务操作为 {mock_usage['batch_task_executions']} 次",
+            synthetic_section,
+        )
+        self.assertIn(f"包含 {retry_count} 次受控重试", synthetic_section)
+        self.assertIn(
+            f"相同输入第二轮为 {second_run['batch_task_requests']} 次业务操作",
+            synthetic_section,
+        )
+        self.assertIn(
+            f"不是 {dataset['rows']} 次真实接口调用",
+            synthetic_section,
+        )
+        self.assertIn(
+            f"也不是 {mock_usage['batch_task_executions']} 次真实接口调用",
+            synthetic_section,
+        )
+
+        live_section = _markdown_section(readme, "3. 当前真实")
+        direction_counts = {
+            direction["actual"] for direction in live["directions"].values()
+        }
+        self.assertEqual(len(direction_counts), 1)
+        self.assertIn(f"两个方向各 {direction_counts.pop()} 条", live_section)
+        self.assertIn(f"共 {live['actual_samples']} 条", live_section)
+        self.assertIn(f"{live['successes']} 成功", live_section)
+        self.assertIn(
+            f"{live['error_counts']['empty_result']} `empty_result`",
+            live_section,
+        )
+        self.assertIn(f"成功率 {live['success_rate']:.0%}", live_section)
+        self.assertIn(f"状态为 `{live['status']}`", live_section)
+
+        recovery_line = _section_line(live_section, "- 恢复轮：")
+        for value, unit in (
+            (live["request_count"], "个请求"),
+            (live["cache_hits"], "个缓存命中"),
+            (live["retries"], "次重试"),
+        ):
+            self.assertIn(f"{value} {unit}", recovery_line)
+        self.assertFalse(live["proxy"]["enabled"])
+        self.assertIn("代理关闭", recovery_line)
+
+        replay_line = _section_line(live_section, "- 同输入复跑：")
+        for value, unit in (
+            (replay["cache_hits"], "个缓存命中"),
+            (replay["request_count"], "个请求"),
+            (replay["request_attempts"], "个尝试"),
+            (replay["retries"], "次重试"),
+        ):
+            self.assertIn(f"{value} {unit}", replay_line)
+        self.assertFalse(replay["proxy"]["enabled"])
+        self.assertIn("代理关闭", replay_line)
+
+    def test_root_readme_reports_current_limits_and_separates_evidence(self) -> None:
+        """README 缺失、状态过期或混淆证据类型时，公开口径校验必须失败。"""
+        self.assertTrue(ROOT_README.is_file(), "根目录 README.md 缺失")
+        self._assert_root_readme_contract(
+            ROOT_README.read_text(encoding="utf-8")
+        )
+
+    def test_root_readme_contract_rejects_semantic_and_evidence_mutations(self) -> None:
+        """否定变肯定或任一证据章节数字漂移时，README 契约必须失败。"""
+        readme = ROOT_README.read_text(encoding="utf-8")
+        mutations = {
+            "online conclusion becomes positive": readme.replace(
+                "不是可用服务", "是可用服务", 1
+            ),
+            "historical count drifts": readme.replace(
+                "translation log：1080 个物理行",
+                "translation log：1081 个物理行",
+                1,
+            ),
+            "synthetic count drifts": readme.replace(
+                "验证：1000 行、2000 个输入单元格",
+                "验证：999 行、2000 个输入单元格",
+                1,
+            ),
+            "live count drifts": readme.replace(
+                "当前聚合结果是 3 成功",
+                "当前聚合结果是 4 成功",
+                1,
+            ),
+            "live replay count drifts": readme.replace(
+                "同输入复跑：20 个缓存命中",
+                "同输入复跑：19 个缓存命中",
+                1,
+            ),
+        }
+
+        for label, mutated_readme in mutations.items():
+            with self.subTest(mutation=label):
+                self.assertNotEqual(mutated_readme, readme, "变异探针未命中原文")
+                with self.assertRaises(AssertionError):
+                    self._assert_root_readme_contract(mutated_readme)
 
     def test_sensitive_content_scanner_rejects_generic_marker_categories(self) -> None:
         """放宽任一通用敏感类别规则时，合成探针必须失败。"""
